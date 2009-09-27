@@ -89,9 +89,9 @@ def read_dir(d_chain):
         if de_buf == '\0' * 32: break
         de = parse(DENTRY_DICT, de_buf)
         de['raw'] = de_buf
-        de['ofs'] = d_chain.offs(i * 32)
-        de['offs'] = de['ofs']
-        de['attrs'] = ''
+        de['ofs'] = d_chain.offs(i * 32)        # offset of SFN
+        de['offs'] = de['ofs']                  # offset of LFN
+        de['attrs'] = ''                        # 'flags' representation
         for a, m in ATTR_MASK_LIST:
             if de['flags'] & m: de['attrs'] += a
             else: de['attrs'] += '-'
@@ -108,6 +108,8 @@ def read_dir(d_chain):
                     or cur_lfn_cksum == de['lfncksum'])
                 cur_lfn_parts[de['lfni']] = de['lfn1'] + de['lfn2']\
                     + de['lfn3']
+                # FIXME: Calculate LFN offset as offset of the first
+                # encountered LFN entry (not the one with isLast flag):
                 if cur_lfn_offs is None: cur_lfn_offs = de['ofs']
         else:
             if de['flags'] == 0x08:
@@ -123,12 +125,16 @@ def read_dir(d_chain):
                         for k in sorted(cur_lfn_parts.keys())])
                     assert(not (len(de['namu']) % 1))
                     de['name'] = ''
+                    # Convert from little-endian byte representation of
+                    # UCS16 string to Python's native unicode:
                     for i in range(0, len(de['namu'])/2):
                         (l, h) = struct.unpack('BB', de['namu'][i*2:i*2+2])
                         if not l and not h: break
                         de['name'] += unichr((h << 8) + l)
+                    # Store LFN offset
                     de['offs'] = cur_lfn_offs
                 else:
+                    # LFN not provided, so use entry's short name instead:
                     de['name'] = de['nam'].rstrip()
                     if de['ext'].rstrip() != '':
                         de['name'] += '.' + de['ext'].rstrip()
