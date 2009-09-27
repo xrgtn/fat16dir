@@ -60,8 +60,7 @@ class BChain:
         # Return less than the requested size when the requested region
         # spans several sectors
         buf = ''
-        n = pos / self.bsize
-        p = pos % self.bsize
+        n, p = divmod(pos, self.bsize)
         o = self.boffs + self.blist[n] * self.bsize + p
         f.seek(o, os.SEEK_SET)
         # limit the requested size:
