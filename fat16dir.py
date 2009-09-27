@@ -7,29 +7,29 @@ import re
 import struct
 
 BR_DICT = {
-    'bps': [0x0B, 2, '<H'],
-    'spc': [0x0D, 1, 'B'],
-    'rsvd_sects': [0x0E, 2, '<H'],
-    'n_fats': [0x10, 1, 'B'],
-    'rdents': [0x11, 2, '<H'],
-    'spf': [0x16, 2, '<H'],
-    'spt': [0x18, 2, '<H'],
-    'heads': [0x1A, 2, '<H'],
-    'magic': [0x1FE, 2, '<H'],
+    'bps': [0x0B, 2, '<H'],             # bytes per sector
+    'spc': [0x0D, 1, 'B'],              # sectors per cluster
+    'rsvd_sects': [0x0E, 2, '<H'],      # reserved sectors from boot record
+    'n_fats': [0x10, 1, 'B'],           # number of FATs
+    'rdents': [0x11, 2, '<H'],          # number of rootdir entries
+    'spf': [0x16, 2, '<H'],             # sectors per FAT
+    'spt': [0x18, 2, '<H'],             # sectors per track
+    'heads': [0x1A, 2, '<H'],           # heads (sides)
+    'magic': [0x1FE, 2, '<H'],          # boot record magic
 }
 
 DENTRY_DICT = {
-    'nam': [0x00, 8, '8s'],
-    'ext': [0x08, 3, '3s'],
-    'size': [0x1C, 4, '<I'],
-    'cluster': [0x1A, 2, '<H'],
-    'flags': [0x0B, 1, 'B'],
-    'lfncksum': [0x0D, 1, 'B'],
-    'nt': [0x0C, 1, 'B'],
-    'lfnf': [0x00, 1, 'B'],
-    'lfn1': [0x01, 10, '10s'],
-    'lfn2': [0x0E, 12, '12s'],
-    'lfn3': [0x1C, 4, '4s'],
+    'nam': [0x00, 8, '8s'],             # short name (8 chars)
+    'ext': [0x08, 3, '3s'],             # short extension (3 chars)
+    'size': [0x1C, 4, '<I'],            # size in bytes
+    'cluster': [0x1A, 2, '<H'],         # first cluster
+    'flags': [0x0B, 1, 'B'],            # R/O, hidden, system etc.
+    'lfncksum': [0x0D, 1, 'B'],         # LFN checksum
+    'nt': [0x0C, 1, 'B'],               # unknown
+    'lfnf': [0x00, 1, 'B'],             # LFN flags: isLast and index
+    'lfn1': [0x01, 10, '10s'],          # LFN part1
+    'lfn2': [0x0E, 12, '12s'],          # LFN part2
+    'lfn3': [0x1C, 4, '4s'],            # LFN part3
 }
 
 ATTR_MASK_LIST = (('v', 0x08), ('d', 0x10), ('r', 0x01),
