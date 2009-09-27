@@ -52,8 +52,7 @@ class BChain:
     def __len__(self):
         return len(self.blist) * self.bsize
     def offs(self, pos):
-        n = pos / self.bsize
-        p = pos % self.bsize
+        n, p = divmod(pos, self.bsize)
         return self.boffs + self.blist[n] * self.bsize + p
     def _read(self, pos, size):
         # Reads data up to the end of sector.
