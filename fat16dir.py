@@ -85,9 +85,7 @@ def read_dir(d_chain):
     de_cnt = len(d_chain) / 32
     de_list = []
     cur_lfn_parts = dict()
-    cur_lfn_cksum = None
-    cur_lfn_maxnum = None
-    cur_lfn_offs = None
+    cur_lfn_cksum = cur_lfn_maxnum = cur_lfn_offs = None
     for i in range(0, de_cnt):
         de_buf = d_chain.read(i * 32, 32)
         if de_buf == '\0' * 32: break
@@ -139,9 +137,7 @@ def read_dir(d_chain):
                 if de['flags'] & ATTR2MASK_MAP['d']: de['type'] = 'dir'
                 else: de['type'] = 'file'
             cur_lfn_parts = dict()
-            cur_lfn_cksum = None
-            cur_lfn_maxnum = None
-            cur_lfn_offs = None
+            cur_lfn_cksum = cur_lfn_maxnum = cur_lfn_offs = None
             de_list.append(de)
     return de_list
 
