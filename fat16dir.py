@@ -169,14 +169,20 @@ def get_clist(br, de):
     return clist
 
 def ls_dirents(br, de_list):
+    global opts
     for de in de_list:
         if de['type'] in ('delf', 'deld'): continue
         elif de['type'] in ('lfn', 'deln'): continue
         else:
             # Dir/file/volume label
-            print '%5s #%05i of %05i +%08X/%08X %10i %s' % (
-                de['attrs'], de['cluster'], len(get_clist(br, de)),
-                de['offs'], de['ofs'], de['size'], de['name'])
+            if opts.size == "bytes":
+                s = " %10i" % de['size']
+            elif opts.size == "clusters":
+                s = " %5i" % len(get_clist(br, de))
+            elif opts.size == "sectors":
+                s = " %8i" % (len(get_clist(br, de)) * br['spc'])
+            else: s = ""
+            print '%5s +%08X%s %s' % (de['attrs'], de['offs'], s, de['name'])
 
 def _ls_path(br, dir_cache, path_head_str, path_tail_list):
     de_list = get_dirents(dir_cache[path_head_str])
