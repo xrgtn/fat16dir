@@ -96,8 +96,12 @@ def get_dirents(d_chain):
         de['raw'] = de_buf
         de['ofs'] = d_chain.offs(i * 32)        # offset of SFN
         de['offs'] = de['ofs']                  # offset of LFN
-        de['attrs'] = ''                        # string of 'flags'
-        for a, m in ATTR_MASK_LIST:
+        assert(not (de['flags'] & ATTR2MASK_MAP['v']
+            and de['flags'] & ATTR2MASK_MAP['d']))
+        if de['flags'] & ATTR2MASK_MAP['v']: de['attrs'] = 'v'
+        elif de['flags'] & ATTR2MASK_MAP['d']: de['attrs'] = 'd'
+        else: de['attrs'] = '-'
+        for a, m in ATTR_MASK_LIST[2:]:
             if de['flags'] & m: de['attrs'] += a
             else: de['attrs'] += '-'
         if de['flags'] == 0x0F:
