@@ -188,10 +188,11 @@ def _ls_path(br, dir_cache, path_head_str, path_tail_list):
                 return ls_dirents(br, [de])
             elif de['type'] == 'dir' and de['name'] == p:
                 de_clist = get_clist(br, de)
-                de_cchain = BChain(br['dev'], blist = de_clist,
-                    bsize = br['spc'] * br['bps'],
-                    boffs = br['c0offs'])
-                dir_cache[path_head_str] = de_cchain
+                if path_head_str not in dir_cache:
+                    de_cchain = BChain(br['dev'], blist = de_clist,
+                        bsize = br['spc'] * br['bps'],
+                        boffs = br['c0offs'])
+                    dir_cache[path_head_str] = de_cchain
                 return _ls_path(br, dir_cache, path_head_str,
                     path_tail_list)
         print "ERROR: \"%s\" doesn't exist" % path_head_str
