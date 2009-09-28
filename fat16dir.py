@@ -78,8 +78,12 @@ class BChain:
             if b == '': raise IOError("EOF at pos %i" % (pos + len(buf)))
             buf += b
         return buf
+    @classmethod
+    def get(f, pos, size, blist = [0], bsize = 512, boffs = 0):
+        tmp = BChain(f = f, blist = blist, bsize = 512, boffs = 0)
+        return tmp.read(pos, size)
 
-def read_dir(d_chain):
+def get_dirents(d_chain):
     de_cnt = len(d_chain) / 32
     de_list = []
     cur_lfn_parts = dict()
@@ -91,7 +95,7 @@ def read_dir(d_chain):
         de['raw'] = de_buf
         de['ofs'] = d_chain.offs(i * 32)        # offset of SFN
         de['offs'] = de['ofs']                  # offset of LFN
-        de['attrs'] = ''                        # 'flags' representation
+        de['attrs'] = ''                        # string of 'flags'
         for a, m in ATTR_MASK_LIST:
             if de['flags'] & m: de['attrs'] += a
             else: de['attrs'] += '-'
@@ -145,15 +149,58 @@ def read_dir(d_chain):
             de_list.append(de)
     return de_list
 
-def ls_dir(de_list):
+# Get cluster list for the given directory entry
+def get_clist(br, de):
+    if de['type'] == 'vol':
+        assert(de['size'] == 0 and de['cluster'] == 0)
+        return []
+    assert(de['type'] in ('dir', 'file'))
+    assert(de['cluster'] >= 2 and de['cluster'] <= 0xFFF8
+        or de['size'] == 0 and de['cluster'] == 0)
+    fat1bchain = BChain(br['dev'], [0],
+        bsize = br['spf'] * br['bps'], boffs = br['fat1offs'])
+    assert(fat1bchain.read(0, 4) == '\xF8\xFF\xFF\xFF')
+    c = de['cluster']
+    clist = []
+    while c >= 2 and c < 0xFFF7:
+        clist.append(c)
+        c = struct.unpack('<H', fat1bchain.read(c * 2, 2))[0]
+    return clist
+
+def ls_dirents(br, de_list):
     for de in de_list:
         if de['type'] in ('delf', 'deld'): continue
         elif de['type'] in ('lfn', 'deln'): continue
         else:
-            # Dir/file
-            print '%5s %4s #%05i +%08X/%08X %10i %s' % (
-                de['attrs'], de['type'], de['cluster'], de['offs'], de['ofs'],
-                de['size'], de['name'])
+            # Dir/file/volume label
+            print '%5s #%05i of %05i +%08X/%08X %10i %s' % (
+                de['attrs'], de['cluster'], len(get_clist(br, de)),
+                de['offs'], de['ofs'], de['size'], de['name'])
+
+def _ls_path(br, dir_cache, path_head_str, path_tail_list):
+    de_list = get_dirents(dir_cache[path_head_str])
+    if not path_tail_list: return ls_dirents(br, de_list)
+    else:
+        p, path_tail_list = path_tail_list[0], path_tail_list[1:]
+        path_head_str = os.path.join(path_head_str, p)
+        for de in de_list:
+            if de['type'] == 'file' and de['name'] == p:
+                return ls_dirents(br, [de])
+            elif de['type'] == 'dir' and de['name'] == p:
+                de_clist = get_clist(br, de)
+                de_cchain = BChain(br['dev'], blist = de_clist,
+                    bsize = br['spc'] * br['bps'],
+                    boffs = br['c0offs'])
+                dir_cache[path_head_str] = de_cchain
+                return _ls_path(br, dir_cache, path_head_str,
+                    path_tail_list)
+        print "ERROR: \"%s\" doesn't exist" % path_head_str
+
+def ls_path(br, dir_cache, path_str):
+    splitpath = os.path.normcase(os.path.normpath(path_str)).split(os.path.sep)
+    if splitpath[0] == '': splitpath = splitpath[1:]
+    if splitpath[-1] in ('', '.'): splitpath = splitpath[:-1]
+    return _ls_path(br, dir_cache, os.path.sep, splitpath)
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
@@ -164,18 +211,25 @@ if __name__ == '__main__':
     br = parse(BR_DICT, br_buf)
     assert(br['magic'] == 0xAA55)
     assert(br['bps'] in (256, 512, 2048))
-    br['fat1offs'] = br['rsvd_sects'] * br['bps']
-    br['fat2offs'] = br['fat1offs'] + br['spf'] * br['bps']
+    br['dev'] = f
+    # byte offsets of FAT1, FAT2 & so on
+    # (in fact, never saw more than two FATs on disk):
+    for i in range(1, br['n_fats'] + 1):
+        br['fat%ioffs' % i] = br['rsvd_sects'] * br['bps']\
+            + i * br['spf'] * br['bps']
+    # bytes per root directory:
     br['bprd'] = br['rdents'] * 32
+    # sectors per root directory:
     br['sprd'] = (br['bprd'] + br['bps'] - 1) / br['bps']
+    # byte offset of root directory:
     br['rd_offs'] = (br['rsvd_sects'] + br['n_fats'] * br['spf']) * br['bps']
+    # byte offsets of cluster #2 and cluster #0:
     br['c2offs'] = br['rd_offs'] + br['sprd'] * br['bps']
     br['c0offs'] = br['c2offs'] - 2 * br['spc'] * br['bps']
-    print br
-    rd_chain = BChain(f, [0], bsize = br['bprd'], boffs = br['rd_offs'])
-    ls_dir(read_dir(rd_chain))
-    for path in sys.argv[2:]:
-        path = os.path.normcase(os.path.normpath(path))
-        print path
+    # print br
+    # Pre-cache the root directory:
+    dir_cache = {os.path.sep: BChain(f, [0],
+        bsize = br['bprd'], boffs = br['rd_offs'])}
+    for path in sys.argv[2:]: ls_path(br, dir_cache, path)
 
 # vi:set sw=4 et:
