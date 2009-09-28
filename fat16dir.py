@@ -172,7 +172,7 @@ def get_clist(br, de):
         c = struct.unpack('<H', fat1bchain.read(c * 2, 2))[0]
     return clist
 
-def ls_dirents(br, de_list):
+def ls_dirents(br, de_list, base_path = None):
     global opts
     for de in de_list:
         if de['type'] in ('delf', 'deld'): continue
@@ -186,17 +186,35 @@ def ls_dirents(br, de_list):
             elif opts.size == "sectors":
                 s = " %8i" % (len(get_clist(br, de)) * br['spc'])
             else: s = ""
-            print '%5s +%08X%s %s' % (de['attrs'], de['offs'], s, de['name'])
+            if base_path is None: name = de['name']
+            else: name = os.path.join(base_path, de['name'])
+            print '%5s +%08X%s %s' % (de['attrs'], de['offs'], s, name)
 
 def _ls_path(br, dir_cache, path_head_str, path_tail_list):
+    global opts
     de_list = get_dirents(dir_cache[path_head_str])
-    if not path_tail_list: return ls_dirents(br, de_list)
+    if not path_tail_list:
+        if not opts.recurse: return ls_dirents(br, de_list)
+        else:
+            for de in de_list:
+                ls_dirents(br, [de], path_head_str)
+                if de['type'] == 'dir' and de['name'] not in ('.', '..'):
+                    de_clist = get_clist(br, de)
+                    path_de_str = os.path.join(path_head_str, de['name'])
+                    if path_de_str not in dir_cache:
+                        de_cchain = BChain(br['dev'], blist = de_clist,
+                            bsize = br['spc'] * br['bps'],
+                            boffs = br['c0offs'])
+                        dir_cache[path_de_str] = de_cchain
+                    _ls_path(br, dir_cache, path_de_str, [])
     else:
         p, path_tail_list = path_tail_list[0], path_tail_list[1:]
+        path_head_str0 = path_head_str
         path_head_str = os.path.join(path_head_str, p)
         for de in de_list:
             if de['type'] == 'file' and de['name'] == p:
-                return ls_dirents(br, [de])
+                if not opts.recurse: return ls_dirents(br, [de])
+                else: return ls_dirents(br, [de], path_head_str0)
             elif de['type'] == 'dir' and de['name'] == p:
                 de_clist = get_clist(br, de)
                 if path_head_str not in dir_cache:
@@ -224,7 +242,12 @@ if __name__ == '__main__':
         help="print size in clusters", default=None, const="clusters")
     op.add_option("-s", "--sectors", dest="size", action="store_const",
         help="print size in sectors", default=None, const="sectors")
+    op.add_option("-r", "--recurse", dest="recurse", action="store_true",
+        help="recurse into directories like find does", default=None)
     (opts, args) = op.parse_args()
+    if len(args) == 1:
+        args.append("/")
+        opts.recurse = True
     if len(args) < 2: op.error("incorrect number of arguments")
     f = file(args[0], 'r')
     br_buf = f.read(512)
