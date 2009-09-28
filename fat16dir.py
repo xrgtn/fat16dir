@@ -5,6 +5,7 @@ import os
 import os.path
 import re
 import struct
+import optparse
 
 BR_DICT = {
     'bps': [0x0B, 2, '<H'],             # bytes per sector
@@ -204,10 +205,18 @@ def ls_path(br, dir_cache, path_str):
     return _ls_path(br, dir_cache, os.path.sep, splitpath)
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print "USAGE: fat16dir.py <dev> <path1> [<path2> ...]"
-        sys.exit(1)
-    f = file(sys.argv[1], 'r')
+    global opts
+    op = optparse.OptionParser(
+        "USAGE: %prog [options] <dev> <path1> [<path2> ...]")
+    op.add_option("-b", "--byte", dest="size", action="store_const",
+        help="print size in bytes", default=None, const="bytes")
+    op.add_option("-c", "--clusters", dest="size", action="store_const",
+        help="print size in clusters", default=None, const="clusters")
+    op.add_option("-s", "--sectors", dest="size", action="store_const",
+        help="print size in sectors", default=None, const="sectors")
+    (opts, args) = op.parse_args()
+    if len(args) < 2: op.error("incorrect number of arguments")
+    f = file(args[0], 'r')
     br_buf = f.read(512)
     br = parse(BR_DICT, br_buf)
     assert(br['magic'] == 0xAA55)
@@ -231,6 +240,6 @@ if __name__ == '__main__':
     # Pre-cache the root directory:
     dir_cache = {os.path.sep: BChain(f, [0],
         bsize = br['bprd'], boffs = br['rd_offs'])}
-    for path in sys.argv[2:]: ls_path(br, dir_cache, path)
+    for path in args[1:]: ls_path(br, dir_cache, path)
 
 # vi:set sw=4 et:
