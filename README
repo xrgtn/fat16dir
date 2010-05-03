@@ -1,0 +1,5 @@
+This is a tool for providing extended "ls" on FAT16 disk
+images. It's different from "mtools" because it provides
+offset of file dirent. This offset is rarely needed, the
+only known application ATM is creating .PLA playlist for
+MOTO P2K phones.
