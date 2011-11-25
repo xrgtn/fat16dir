@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2011 Alexander Gattin (xrgtn).
+# Copyright (c) 2009 Alexander Gattin (xrgtn).
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
