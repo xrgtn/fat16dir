@@ -3,3 +3,4 @@ images. It's different from "mtools" because it provides
 offset of file dirent. This offset is rarely needed, the
 only known application ATM is creating .PLA playlist for
 MOTO P2K phones.
+It is covered by simplified BSD licence (NetBSD variant).
